@@ -1,4 +1,6 @@
 require 'jumpstart_auth'
+require 'bitly'
+require 'klout'
 
 class MicroBlogger
   attr_reader :client
@@ -6,6 +8,10 @@ class MicroBlogger
   def initialize
     puts "Initializing..."
     @client = JumpstartAuth.twitter
+    Bitly.use_api_version_3
+    @bitly = Bitly.new('hungryacademy', 'R_430e9f62250186d2612cca76eee2dbc6')
+    Klout.api_key = 'xu9ztgnacmjx3bu82warbr3h'
+
   end
   def run
     puts "Welcome to the JSL Twitter Client!"
@@ -18,9 +24,12 @@ class MicroBlogger
       case command
       when "q" then puts "Goodbye!"
       when "t" then tweet(parts[1..-1].join(" "))
-      when 'dm' then dm(parts[1], parts[2..-1].join(" "))
-      when 'spam' then spam_my_followers(parts[1..-1].join(" "))
-      when 'elt' then everyones_last_tweet
+      when "dm" then dm(parts[1], parts[2..-1].join(" "))
+      when "spam" then spam_my_followers(parts[1..-1].join(" "))
+      when "elt" then everyones_last_tweet
+      when "s" then shorten(parts[1..-1].join(" "))
+      when "turl" then tweet(parts[1..-2].join(" ") + " " + shorten(parts[-1]))
+      when "klout" then klout_score
       else 
         puts "Sorry, I don't know how to #{command}"
       end
@@ -53,7 +62,7 @@ class MicroBlogger
   end
   def spam_my_followers(message)
     followers_list.each do |follower|
-      dm(follower["screen_name"], message)
+      dm(follower, message)
     end
   end
   def everyones_last_tweet
@@ -64,8 +73,24 @@ class MicroBlogger
       puts friend.screen_name+ " said this on "+date.to_s
       puts friend.status.text
       puts ""
-    end  end
+    end
+  end
+  def shorten(original_url)
+    puts "Shortening this URL: #{original_url}"
+    puts @bitly.shorten(original_url).short_url
+    return @bitly.shorten(original_url).short_url
+  end
+  def klout_score
+    friends = @client.friends.collect{|f| f.screen_name}
+    friends.each do |friend|
+      identity = Klout::Identity.find_by_screen_name(friend)
+      user = Klout::User.new(identity.id)
+      puts friend + ": " + user.score.score.to_s
+      puts ""
+    end
+  end
 end
 blogger = MicroBlogger.new
 blogger.run
+#blogger.klout_score
 
